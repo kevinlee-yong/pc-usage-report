@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC 사용량 보고서</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --text:#1c1f24; --muted:#667085; --line:#e4e7ec; --grid:#eef0f3; --off:#f0f1f4;
+  --c1:#3b6fd9; --c2:#d97a1f; --c3:#1f9a72; --c4:#b8459a; --c5:#7a5bd6; --c6:#c0473b; --c7:#4a8fa8; --c8:#8a7a3a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121418; --card:#1b1e24; --text:#e8eaee; --muted:#9aa3b2; --line:#2c313a; --grid:#242830; --off:#20242b;
+    --c1:#6f9bf0; --c2:#f0a050; --c3:#45c49a; --c4:#e07cc6; --c5:#a58cf2; --c6:#ec7a6c; --c7:#79bcd4; --c8:#c9b56a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121418; --card:#1b1e24; --text:#e8eaee; --muted:#9aa3b2; --line:#2c313a; --grid:#242830; --off:#20242b;
+  --c1:#6f9bf0; --c2:#f0a050; --c3:#45c49a; --c4:#e07cc6; --c5:#a58cf2; --c6:#ec7a6c; --c7:#79bcd4; --c8:#c9b56a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 "Pretendard","Malgun Gothic",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:26px;margin:0 0 4px}
+h2{font-size:18px;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 24px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:20px}
+.desc{color:var(--muted);font-size:13px;margin:0 0 16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;border-top:4px solid var(--acc)}
+.kpi .name{font-weight:600;display:flex;align-items:center;gap:8px}
+.kpi .big{font-size:28px;font-weight:700;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.kpi .meta{color:var(--muted);font-size:13px}
+.kpi .top{font-size:13px;margin-top:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--acc);display:inline-block}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-bottom:12px}
+.legend span{display:flex;align-items:center;gap:6px}
+.tl{display:grid;grid-template-columns:76px 1fr;gap:6px 10px;align-items:center}
+.tl .day{font-size:13px;color:var(--muted);white-space:nowrap}
+.track{position:relative;background:var(--off);border-radius:6px;overflow:hidden}
+.track .bar{position:absolute;border-radius:3px;min-width:2px}
+.axis{position:relative;height:18px;font-size:11px;color:var(--muted)}
+.axis span{position:absolute;transform:translateX(-50%)}
+.gridline{position:absolute;top:0;bottom:0;width:1px;background:var(--grid)}
+.daily{display:grid;grid-template-columns:76px 1fr 84px;gap:8px 10px;align-items:center;font-size:13px}
+.stack{display:flex;height:18px;border-radius:4px;overflow:hidden;gap:2px}
+.stack div{height:100%}
+.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.appbar{height:8px;border-radius:4px;opacity:.85}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--off);color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.note li{margin-bottom:4px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{font:inherit;font-size:14px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--text);cursor:pointer;display:flex;align-items:center;gap:6px}
+.tabs button[aria-selected="true"]{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);font-weight:600}
+details{margin-top:14px} summary{cursor:pointer;color:var(--muted);font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chips span{font-size:12px;padding:3px 9px;border-radius:10px;background:var(--off)}
+.warn{border-left:4px solid var(--c2)}
+.empty{color:var(--muted);font-size:14px;padding:12px 0}
+@media (max-width:600px){ .tl,.daily{grid-template-columns:52px 1fr} .daily .num{grid-column:2;text-align:left} .kpi .big{font-size:24px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>PC 사용량 보고서</h1>
+  <p class="sub" id="sub"></p>
+  <div class="card note warn" id="warnings" hidden></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2>요일별 사용 타임라인</h2>
+    <p class="desc">진한 막대는 그 계정이 실제로 화면을 쓰던 시간(실사용), 옅은 막대는 로그인만 되어 있고 화면은 다른 계정이 쓰던 시간입니다. 절전 시간은 빠져 있습니다. 막대에 마우스를 올리면 시각이 보입니다.</p>
+    <div class="legend" id="legend"></div>
+    <div class="tl" id="timeline"></div>
+    <p class="note" id="skipped1" hidden></p>
+  </div>
+
+  <div class="card">
+    <h2>일별 실사용 시간</h2>
+    <p class="desc">화면은 한 번에 한 계정만 쓸 수 있으므로, 여러 계정이 함께 로그인해 있던 시간은 실제로 화면을 쓰던 계정에만 넣었습니다.</p>
+    <div class="daily" id="daily"></div>
+    <p class="note" id="skipped2" hidden></p>
+  </div>
+
+  <div class="card">
+    <h2>로그인 세션 목록</h2>
+    <p class="desc">‘로그인 유지’는 로그인부터 로그아웃까지(절전 제외)이고, ‘실사용’은 그중 이 계정이 실제로 화면을 쓰던 시간입니다.</p>
+    <div class="tablewrap"><table id="sessions"><thead><tr><th>계정</th><th>로그인</th><th>로그아웃</th><th class="r">로그인 유지</th><th class="r">실사용</th><th>종료 사유</th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h2>계정별 실행한 앱</h2>
+    <p class="desc">이 기간에 사용자가 직접 실행한 앱입니다. ‘누적 실행’과 ‘누적 사용(창이 앞에 있던 시간)’은 Windows가 그동안 쌓아 온 값이라 <b>이 기간만의 수치가 아닙니다</b>. 값이 없는 앱은 ‘—’로 표시됩니다.</p>
+    <div class="tabs" id="apptabs"></div>
+    <div class="tablewrap"><table id="apps"><thead><tr><th>앱</th><th>분류</th><th class="r">누적 실행</th><th class="r">누적 사용</th><th style="width:20%"></th><th class="r">마지막 기록</th></tr></thead><tbody></tbody></table></div>
+    <div id="appempty" class="empty" hidden>이 계정은 기간 내 앱 실행 기록이 없습니다.</div>
+    <details id="otherwrap"><summary>그 밖에 실행 중이던 프로그램 (자동 실행·백그라운드 포함)</summary><div class="chips" id="other"></div></details>
+  </div>
+
+  <div class="card note">
+    <h2 style="color:var(--text)">해석할 때 참고</h2>
+    <ul>
+      <li><b>실사용</b>은 Windows의 계정 전환 기록(LocalSessionManager 이벤트 21·24·25·23)으로 계산했습니다. 다른 계정으로 전환하면 이전 계정은 그 시점부터 실사용에서 빠집니다.</li>
+      <li id="idlenote">실사용은 <b>화면을 갖고 있던 시간</b>이라 PC를 켜 둔 채 자리를 비운 시간도 포함됩니다.</li>
+      <li>원격 데스크톱으로 접속한 세션도 실사용에 포함됩니다.</li>
+      <li>앱의 ‘마지막 기록’은 실행 시각이거나, 그 앱이 마지막으로 실행 중이던 시각입니다. 로그아웃·절전 직전 시각에 찍힌 앱은 그때까지 켜져 있었다는 뜻입니다.</li>
+      <li>이벤트 로그는 용량이 차면 오래된 것부터 지워지므로, 기간 앞부분 기록이 빠져 있을 수 있습니다.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const DATA = {"computer":"","share":true,"from":"2026-09-24T00:00:00","to":"2026-11-24T09:17:46","fromText":"2026-09-24(목)","toText":"2026-11-24(화) 09:17","generated":"2026-11-24 09:17","period":"최근 2개월","users":["사용자 A","사용자 B","사용자 C","사용자 D"],"sessions":[{"u":"사용자 A","a":"2026-09-26T10:39:59","b":"2026-09-26T12:36:12","r":"절전"},{"u":"사용자 B","a":"2026-09-26T10:40:17","b":"2026-09-26T11:41:35","r":"로그아웃"},{"u":"사용자 C","a":"2026-09-26T11:41:44","b":"2026-09-26T12:36:11","r":"절전"},{"u":"사용자 C","a":"2026-09-26T15:30:35","b":"2026-09-26T15:46:32","r":"절전"},{"u":"사용자 C","a":"2026-09-26T15:53:14","b":"2026-09-26T16:06:40","r":"절전"},{"u":"사용자 B","a":"2026-09-26T15:53:27","b":"2026-09-26T16:06:40","r":"절전"},{"u":"사용자 C","a":"2026-10-03T10:43:54","b":"2026-10-03T10:44:12","r":"로그아웃"},{"u":"사용자 B","a":"2026-10-03T10:43:55","b":"2026-10-03T11:55:46","r":"절전"},{"u":"사용자 D","a":"2026-10-06T11:45:09","b":"2026-10-06T11:45:43","r":"로그아웃"},{"u":"사용자 A","a":"2026-10-06T11:45:35","b":"2026-10-06T12:03:30","r":"절전"},{"u":"사용자 A","a":"2026-10-06T14:12:12","b":"2026-10-06T16:42:42","r":"절전"},{"u":"사용자 B","a":"2026-10-06T14:12:51","b":"2026-10-06T16:42:41","r":"절전"},{"u":"사용자 A","a":"2026-10-06T16:44:48","b":"2026-10-06T16:45:03","r":"종료"},{"u":"사용자 B","a":"2026-10-06T16:44:55","b":"2026-10-06T16:47:17","r":"절전"},{"u":"사용자 A","a":"2026-10-06T21:40:55","b":"2026-10-06T21:46:32","r":"절전"},{"u":"사용자 A","a":"2026-10-17T08:55:27","b":"2026-10-17T09:20:08","r":"절전"},{"u":"사용자 C","a":"2026-10-17T08:55:49","b":"2026-10-17T09:20:07","r":"절전"},{"u":"사용자 A","a":"2026-10-17T09:29:11","b":"2026-10-17T09:29:25","r":"로그아웃"},{"u":"사용자 C","a":"2026-10-17T09:29:13","b":"2026-10-17T10:11:32","r":"절전"},{"u":"사용자 C","a":"2026-10-17T18:04:00","b":"2026-10-17T18:05:16","r":"절전"},{"u":"사용자 C","a":"2026-10-17T18:17:51","b":"2026-10-17T20:29:32","r":"절전"},{"u":"사용자 B","a":"2026-10-17T19:22:53","b":"2026-10-17T20:29:32","r":"절전"},{"u":"사용자 B","a":"2026-10-18T08:15:09","b":"2026-10-18T08:15:14","r":"로그아웃"},{"u":"사용자 C","a":"2026-10-18T08:15:26","b":"2026-10-18T08:19:59","r":"절전"},{"u":"사용자 C","a":"2026-10-24T11:34:57","b":"2026-10-24T15:27:10","r":"종료"},{"u":"사용자 A","a":"2026-10-24T11:35:21","b":"2026-10-24T13:31:51","r":"로그아웃"},{"u":"사용자 B","a":"2026-10-24T12:45:18","b":"2026-10-24T12:45:50","r":"로그아웃"},{"u":"사용자 B","a":"2026-10-24T14:17:55","b":"2026-10-24T15:26:52","r":"종료"},{"u":"사용자 A","a":"2026-10-24T15:28:23","b":"2026-10-24T19:41:42","r":"종료"},{"u":"사용자 A","a":"2026-10-24T22:04:17","b":"2026-10-24T22:04:17","r":"종료"},{"u":"사용자 A","a":"2026-10-30T19:37:15","b":"2026-10-30T19:47:04","r":"절전"},{"u":"사용자 A","a":"2026-10-30T19:54:22","b":"2026-10-30T20:45:04","r":"절전"},{"u":"사용자 A","a":"2026-10-30T20:45:11","b":"2026-10-30T20:47:00","r":"로그아웃"},{"u":"사용자 A","a":"2026-10-30T20:52:35","b":"2026-10-30T20:52:35","r":"종료"},{"u":"사용자 A","a":"2026-10-30T21:00:16","b":"2026-10-30T21:01:31","r":"종료"},{"u":"사용자 A","a":"2026-10-30T21:02:44","b":"2026-10-30T21:09:01","r":"절전"},{"u":"사용자 A","a":"2026-11-01T17:19:26","b":"2026-11-01T17:28:42","r":"절전"},{"u":"사용자 A","a":"2026-11-03T23:22:32","b":"2026-11-03T23:23:44","r":"절전"},{"u":"사용자 A","a":"2026-11-05T22:30:24","b":"2026-11-05T22:32:58","r":"로그아웃"},{"u":"사용자 A","a":"2026-11-05T22:33:04","b":"2026-11-06T19:11:22","r":"절전"},{"u":"사용자 A","a":"2026-11-06T19:39:00","b":"2026-11-06T21:38:03","r":"종료"},{"u":"사용자 A","a":"2026-11-06T22:26:50","b":"2026-11-07T02:56:30","r":"종료"},{"u":"사용자 C","a":"2026-11-06T22:30:24","b":"2026-11-07T02:56:24","r":"종료"},{"u":"사용자 A","a":"2026-11-07T08:53:33","b":"2026-11-07T08:55:24","r":"재시작"},{"u":"사용자 A","a":"2026-11-07T08:59:19","b":"2026-11-07T09:34:50","r":"재시작"},{"u":"사용자 A","a":"2026-11-07T09:36:53","b":"2026-11-07T11:23:19","r":"재시작"},{"u":"사용자 A","a":"2026-11-07T11:24:03","b":"2026-11-07T12:29:43","r":"절전"},{"u":"사용자 B","a":"2026-11-07T11:24:17","b":"2026-11-07T12:29:43","r":"절전"},{"u":"사용자 A","a":"2026-11-07T12:30:01","b":"2026-11-07T12:30:03","r":"종료"},{"u":"사용자 C","a":"2026-11-07T12:30:16","b":"2026-11-07T13:44:36","r":"절전"},{"u":"사용자 C","a":"2026-11-07T17:36:42","b":"2026-11-07T17:37:52","r":"절전"},{"u":"사용자 A","a":"2026-11-07T17:37:10","b":"2026-11-07T17:37:51","r":"절전"},{"u":"사용자 A","a":"2026-11-07T21:08:54","b":"2026-11-07T22:53:41","r":"절전"},{"u":"사용자 A","a":"2026-11-07T22:58:59","b":"2026-11-08T01:26:45","r":"절전"},{"u":"사용자 A","a":"2026-11-08T07:56:51","b":"2026-11-08T08:18:51","r":"절전"},{"u":"사용자 B","a":"2026-11-08T07:57:01","b":"2026-11-08T08:18:51","r":"절전"},{"u":"사용자 B","a":"2026-11-08T08:22:32","b":"2026-11-08T08:45:03","r":"절전"},{"u":"사용자 A","a":"2026-11-08T08:22:42","b":"2026-11-08T08:45:03","r":"절전"},{"u":"사용자 B","a":"2026-11-08T08:48:37","b":"2026-11-08T08:53:37","r":"로그아웃"},{"u":"사용자 A","a":"2026-11-08T08:48:37","b":"2026-11-08T10:27:41","r":"절전"},{"u":"사용자 A","a":"2026-11-08T19:41:28","b":"2026-11-08T22:28:44","r":"절전"},{"u":"사용자 A","a":"2026-11-13T07:16:40","b":"2026-11-13T07:35:50","r":"종료"},{"u":"사용자 A","a":"2026-11-13T07:37:15","b":"2026-11-13T10:27:27","r":"절전"},{"u":"사용자 A","a":"2026-11-13T11:03:16","b":"2026-11-13T13:08:08","r":"절전"},{"u":"사용자 A","a":"2026-11-13T13:12:01","b":"2026-11-13T13:47:10","r":"절전"},{"u":"사용자 A","a":"2026-11-13T13:55:43","b":"2026-11-13T16:47:25","r":"재시작"},{"u":"사용자 B","a":"2026-11-21T18:19:36","b":"2026-11-21T19:22:31","r":"절전"},{"u":"사용자 B","a":"2026-11-24T08:05:40","b":"2026-11-24T09:17:46","r":"사용 중"},{"u":"사용자 A","a":"2026-11-24T08:05:59","b":"2026-11-24T09:17:46","r":"사용 중"}],"active":[{"u":"사용자 B","a":"2026-09-26T10:40:17","b":"2026-09-26T11:41:35"},{"u":"사용자 C","a":"2026-09-26T11:41:44","b":"2026-09-26T12:36:11"},{"u":"사용자 C","a":"2026-09-26T15:30:35","b":"2026-09-26T15:46:32"},{"u":"사용자 C","a":"2026-09-26T15:53:14","b":"2026-09-26T15:53:23"},{"u":"사용자 B","a":"2026-09-26T15:53:27","b":"2026-09-26T16:06:39"},{"u":"사용자 B","a":"2026-10-03T10:43:55","b":"2026-10-03T11:55:46"},{"u":"사용자 D","a":"2026-10-06T11:45:09","b":"2026-10-06T11:45:34"},{"u":"사용자 A","a":"2026-10-06T11:45:35","b":"2026-10-06T12:03:30"},{"u":"사용자 A","a":"2026-10-06T14:12:12","b":"2026-10-06T14:12:49"},{"u":"사용자 B","a":"2026-10-06T14:12:51","b":"2026-10-06T16:42:41"},{"u":"사용자 B","a":"2026-10-06T16:44:55","b":"2026-10-06T16:47:17"},{"u":"사용자 A","a":"2026-10-06T21:40:55","b":"2026-10-06T21:46:31"},{"u":"사용자 A","a":"2026-10-17T08:55:27","b":"2026-10-17T08:55:46"},{"u":"사용자 C","a":"2026-10-17T08:55:49","b":"2026-10-17T09:20:07"},{"u":"사용자 C","a":"2026-10-17T09:29:14","b":"2026-10-17T10:11:32"},{"u":"사용자 C","a":"2026-10-17T18:04:00","b":"2026-10-17T18:05:16"},{"u":"사용자 C","a":"2026-10-17T18:17:51","b":"2026-10-17T19:22:34"},{"u":"사용자 B","a":"2026-10-17T19:22:53","b":"2026-10-17T20:25:13"},{"u":"사용자 C","a":"2026-10-17T20:25:19","b":"2026-10-17T20:29:32"},{"u":"사용자 C","a":"2026-10-18T08:15:26","b":"2026-10-18T08:19:59"},{"u":"사용자 C","a":"2026-10-24T11:34:57","b":"2026-10-24T11:35:19"},{"u":"사용자 A","a":"2026-10-24T11:35:21","b":"2026-10-24T12:45:14"},{"u":"사용자 B","a":"2026-10-24T12:45:18","b":"2026-10-24T12:45:50"},{"u":"사용자 A","a":"2026-10-24T12:46:01","b":"2026-10-24T13:31:51"},{"u":"사용자 C","a":"2026-10-24T13:31:58","b":"2026-10-24T14:17:50"},{"u":"사용자 B","a":"2026-10-24T14:17:55","b":"2026-10-24T15:26:52"},{"u":"사용자 A","a":"2026-10-24T15:28:24","b":"2026-10-24T19:41:42"},{"u":"사용자 A","a":"2026-10-30T19:37:17","b":"2026-10-30T19:47:04"},{"u":"사용자 A","a":"2026-10-30T19:54:22","b":"2026-10-30T20:45:04"},{"u":"사용자 A","a":"2026-10-30T20:45:11","b":"2026-10-30T20:47:00"},{"u":"사용자 A","a":"2026-10-30T21:00:16","b":"2026-10-30T21:01:31"},{"u":"사용자 A","a":"2026-10-30T21:02:44","b":"2026-10-30T21:09:01"},{"u":"사용자 A","a":"2026-11-01T17:19:27","b":"2026-11-01T17:28:42"},{"u":"사용자 A","a":"2026-11-03T23:22:32","b":"2026-11-03T23:23:43"},{"u":"사용자 A","a":"2026-11-05T22:30:24","b":"2026-11-05T22:32:58"},{"u":"사용자 A","a":"2026-11-05T22:33:04","b":"2026-11-06T19:11:21"},{"u":"사용자 A","a":"2026-11-06T19:39:00","b":"2026-11-06T21:38:03"},{"u":"사용자 A","a":"2026-11-06T22:26:51","b":"2026-11-06T22:30:23"},{"u":"사용자 C","a":"2026-11-06T22:30:24","b":"2026-11-06T22:31:35"},{"u":"사용자 A","a":"2026-11-06T22:31:35","b":"2026-11-07T02:56:30"},{"u":"사용자 A","a":"2026-11-07T08:53:33","b":"2026-11-07T08:55:24"},{"u":"사용자 A","a":"2026-11-07T08:59:19","b":"2026-11-07T09:34:50"},{"u":"사용자 A","a":"2026-11-07T09:36:53","b":"2026-11-07T11:23:19"},{"u":"사용자 A","a":"2026-11-07T11:24:06","b":"2026-11-07T11:24:16"},{"u":"사용자 B","a":"2026-11-07T11:24:17","b":"2026-11-07T12:29:42"},{"u":"사용자 C","a":"2026-11-07T12:30:16","b":"2026-11-07T13:44:36"},{"u":"사용자 C","a":"2026-11-07T17:36:42","b":"2026-11-07T17:37:09"},{"u":"사용자 A","a":"2026-11-07T17:37:10","b":"2026-11-07T17:37:51"},{"u":"사용자 A","a":"2026-11-07T21:08:54","b":"2026-11-07T22:53:41"},{"u":"사용자 A","a":"2026-11-07T22:58:59","b":"2026-11-08T01:26:45"},{"u":"사용자 A","a":"2026-11-08T07:56:51","b":"2026-11-08T07:57:01"},{"u":"사용자 B","a":"2026-11-08T07:57:02","b":"2026-11-08T08:18:51"},{"u":"사용자 B","a":"2026-11-08T08:22:32","b":"2026-11-08T08:22:42"},{"u":"사용자 A","a":"2026-11-08T08:22:43","b":"2026-11-08T08:45:03"},{"u":"사용자 A","a":"2026-11-08T08:48:37","b":"2026-11-08T08:53:17"},{"u":"사용자 B","a":"2026-11-08T08:53:18","b":"2026-11-08T08:53:37"},{"u":"사용자 A","a":"2026-11-08T08:53:42","b":"2026-11-08T10:27:41"},{"u":"사용자 A","a":"2026-11-08T19:41:28","b":"2026-11-08T22:28:44"},{"u":"사용자 A","a":"2026-11-13T07:16:40","b":"2026-11-13T07:35:50"},{"u":"사용자 A","a":"2026-11-13T07:37:16","b":"2026-11-13T10:27:27"},{"u":"사용자 A","a":"2026-11-13T11:03:16","b":"2026-11-13T13:08:08"},{"u":"사용자 A","a":"2026-11-13T13:12:01","b":"2026-11-13T13:47:10"},{"u":"사용자 A","a":"2026-11-13T13:55:43","b":"2026-11-13T16:47:25"},{"u":"사용자 B","a":"2026-11-21T18:19:36","b":"2026-11-21T19:22:31"},{"u":"사용자 B","a":"2026-11-24T08:05:40","b":"2026-11-24T08:05:59"},{"u":"사용자 A","a":"2026-11-24T08:05:59","b":"2026-11-24T09:17:46"}],"apps":{"사용자 A":[{"n":"원격 데스크톱 연결","c":"도구","r":9,"f":411.4,"l":"2026-11-24T08:10:37","p":null},{"n":"Microsoft Edge","c":"브라우저","r":19,"f":255.6,"l":"2026-11-24T08:56:23","p":null},{"n":"Visual Studio Code","c":"개발","r":11,"f":229,"l":"2026-11-24T08:07:17","p":null},{"n":"PowerPoint","c":"오피스","r":8,"f":121,"l":"2026-11-06T22:54:52","p":null},{"n":"Claude","c":"AI","r":9,"f":93.2,"l":"2026-11-24T08:10:25","p":null},{"n":"Aside","c":"도구","r":4,"f":35.9,"l":"2026-11-08T21:47:07","p":null},{"n":"파일 탐색기","c":"시스템","r":19,"f":20.8,"l":"2026-11-24T09:00:31","p":null},{"n":"egolite","c":"브라우저","r":5,"f":13.6,"l":"2026-11-24T08:12:17","p":null},{"n":"Outlook","c":"오피스","r":4,"f":9.7,"l":"2026-11-24T08:59:50","p":null},{"n":"카카오톡","c":"메신저","r":5,"f":9.5,"l":"2026-11-13T14:16:00","p":null},{"n":"설정","c":"시스템","r":9,"f":7.4,"l":"2026-11-13T14:48:45","p":null},{"n":"Word","c":"오피스","r":1,"f":6.7,"l":"2026-11-07T21:25:03","p":null},{"n":"제어판","c":"시스템","r":3,"f":5.3,"l":"2026-11-07T09:59:25","p":null},{"n":"Quick Share","c":"도구","r":1,"f":2.7,"l":"2026-11-07T21:51:03","p":null},{"n":"Compact Customizable CD Menu","c":"게임","r":2,"f":1.7,"l":"2026-11-07T08:59:40","p":null},{"n":"메모장","c":"도구","r":2,"f":1.6,"l":"2026-11-05T22:45:27","p":null},{"n":"Excel","c":"오피스","r":1,"f":0.8,"l":"2026-11-08T21:23:32","p":null},{"n":"Everything","c":"도구","r":3,"f":0.7,"l":"2026-11-24T09:01:10","p":null},{"n":"명령 프롬프트","c":"개발","r":3,"f":0.6,"l":"2026-11-07T21:41:46","p":null},{"n":"PowerShell","c":"개발","r":2,"f":0.4,"l":"2026-11-08T08:51:16","p":null},{"n":"Google Chrome","c":"브라우저","r":11,"f":0.3,"l":"2026-11-08T21:13:46","p":null},{"n":"Microsoft Store","c":"시스템","r":1,"f":0.3,"l":"2026-11-08T00:31:22","p":null},{"n":"PC사용량보고서","c":"도구","r":4,"f":0.2,"l":"2026-11-24T08:49:29","p":null},{"n":"Bandizip","c":"도구","r":2,"f":0.2,"l":"2026-11-24T08:06:30","p":null},{"n":"ego (lite)","c":"브라우저","r":3,"f":0,"l":"2026-11-24T08:10:29","p":null},{"n":"알림 끄기 토글","c":"도구","r":2,"f":0,"l":"2026-11-07T11:22:55","p":null},{"n":"ACE COMBAT 8 - WINGS OF THEVE","c":"도구","r":2,"f":0,"l":"2026-11-07T08:59:40","p":null},{"n":"윤준 - Chrome","c":"브라우저","r":2,"f":0,"l":"2026-11-06T18:40:30","p":null},{"n":"Git GUI","c":"개발","r":1,"f":0,"l":"2026-11-07T22:23:17","p":null},{"n":"Tailscale","c":"도구","r":1,"f":0,"l":"2026-11-07T21:10:52","p":null},{"n":"VALORANT","c":"게임","r":1,"f":0,"l":"2026-11-07T10:07:18","p":null},{"n":"Police Simulator Patrol Officers","c":"게임","r":1,"f":0,"l":"2026-11-07T09:56:54","p":null},{"n":"TreeSize Free","c":"도구","r":1,"f":0,"l":"2026-11-06T22:36:10","p":null},{"n":"Caffeine","c":"도구","r":3,"f":null,"l":"2026-11-24T08:09:47","p":null},{"n":"Git for Windows","c":"개발","r":1,"f":null,"l":"2026-11-07T22:23:17","p":null},{"n":"Tailscale GUI client","c":"도구","r":1,"f":null,"l":"2026-11-07T21:10:52","p":null},{"n":"Xbox Game Bar","c":"게임","r":2,"f":null,"l":"2026-11-07T09:57:03","p":null},{"n":"Boston","c":"오피스","r":1,"f":null,"l":"2026-11-07T09:56:54","p":null},{"n":"ACE COMBAT 8: WINGS OF THEVE Setup","c":"도구","r":1,"f":null,"l":"2026-11-06T23:55:06","p":null},{"n":"Node.js JavaScript Runtime","c":"도구","r":null,"f":null,"l":"2026-10-24T22:52:59","p":null},{"n":"Verify BIN files before installation","c":"게임","r":null,"f":null,"l":"2026-10-24T18:14:30","p":null},{"n":"Minecraft UWP","c":"게임","r":null,"f":null,"l":"2026-10-24T17:43:34","p":null},{"n":"Xbox 앱","c":"게임","r":null,"f":null,"l":"2026-10-24T17:41:28","p":null},{"n":"!start_sp26","c":"게임","r":null,"f":null,"l":"2026-10-24T17:40:46","p":null},{"n":"Call of Duty - Modern Warfare 4","c":"도구","r":null,"f":null,"l":"2026-10-24T17:40:46","p":null},{"n":"Gaming Services","c":"도구","r":null,"f":null,"l":"2026-10-24T17:31:24","p":null},{"n":"Microsoft Management Console","c":"도구","r":null,"f":null,"l":"2026-10-24T17:22:24","p":null},{"n":"setup","c":"게임","r":null,"f":null,"l":"2026-10-24T15:29:42","p":null},{"n":"BootstrapPackagedGame","c":"게임","r":null,"f":null,"l":"2026-10-24T13:13:34","p":null},{"n":"Way of the Hunter 2","c":"도구","r":null,"f":null,"l":"2026-10-24T13:13:34","p":null},{"n":"Roblox","c":"게임","r":null,"f":null,"l":"2026-10-24T12:43:56","p":null},{"n":"Epic Games 런처","c":"게임","r":null,"f":null,"l":"2026-10-24T12:15:36","p":null},{"n":"Epic Games Launcher","c":"게임","r":null,"f":null,"l":"2026-10-24T12:15:36","p":null},{"n":"GoogleDriveFS","c":"도구","r":null,"f":null,"l":"2026-10-24T11:56:34","p":null},{"n":"Google Drive","c":"도구","r":null,"f":null,"l":"2026-10-24T11:56:34","p":null},{"n":"Client","c":"게임","r":null,"f":null,"l":"2026-10-24T11:38:14","p":null},{"n":"Steam","c":"게임","r":null,"f":null,"l":"2026-10-24T11:38:14","p":null}],"사용자 C":[],"사용자 D":[],"사용자 B":[]},"other":{"사용자 A":[],"사용자 C":[],"사용자 D":[],"사용자 B":[]},"top":{"사용자 A":"원격 데스크톱 연결 · Microsoft Edge · Visual Studio Code"},"warnings":["관리자 권한 없이 실행되어 다른 계정의 앱 기록과 자리 비움 기록을 읽지 못했습니다. exe를 오른쪽 클릭 → ‘관리자 권한으로 실행’ 하면 모두 포함됩니다."],"idleOn":false,"idleWait":10,"idle":{}};
+
+const PALETTE = ['--c1','--c2','--c3','--c4','--c5','--c6','--c7','--c8'];
+const USERS = DATA.users.map((id,i)=>({id, color:`var(${PALETTE[i%PALETTE.length]})`}));
+const P = s => new Date(s);
+const S = DATA.sessions.map(x=>({u:x.u,a:P(x.a),b:P(x.b),r:x.r}));
+const A = DATA.active.map(x=>({u:x.u,a:P(x.a),b:P(x.b)}));
+const FROM = P(DATA.from), TO = P(DATA.to);
+const color = u => (USERS.find(x=>x.id===u)||{color:'var(--muted)'}).color;
+const fmt = ms => { const m=Math.round(ms/60000); const h=Math.floor(m/60); return h? `${h}시간 ${m%60}분` : (m||ms<=0? `${m}분` : '1분 미만'); };
+const hm = d => String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+const md = d => `${d.getMonth()+1}/${d.getDate()}`;
+const DOW = ['일','월','화','수','목','금','토'];
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const overlap = (s,list)=>list.filter(x=>x.u===s.u).reduce((t,x)=>t+Math.max(0,Math.min(+s.b,+x.b)-Math.max(+s.a,+x.a)),0);
+
+const days=[]; for(let d=new Date(FROM.getFullYear(),FROM.getMonth(),FROM.getDate()); d<TO; d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)) days.push(d);
+const dayEnd = d => +new Date(d.getFullYear(),d.getMonth(),d.getDate()+1);
+const dayUsed = d => { const d0=+d, d1=dayEnd(d);
+  return A.some(s=>+s.a<d1 && +s.b>d0); };
+const shownDays = days.filter(dayUsed);
+const skipped = days.length - shownDays.length;
+
+document.getElementById('sub').textContent =
+  `${DATA.fromText} ~ ${DATA.toText}${DATA.period ? ' · ' + DATA.period : ''}${DATA.computer ? ' · PC: ' + DATA.computer : ''} · 생성: ${DATA.generated}` +
+  ` · 출처: Windows 이벤트 로그(Winlogon, LocalSessionManager, 전원), 레지스트리 UserAssist·BAM`;
+if(DATA.share) document.getElementById('sub').insertAdjacentHTML('afterend',
+  '<div class="card note" style="border-left:4px solid var(--c2)"><b>공유용 보고서</b> · 계정 이름은 ‘사용자 A·B·C’로 바뀌었고, PC 이름과 앱 설치 경로는 삭제했습니다.</div>');
+if(DATA.warnings.length){ const w=document.getElementById('warnings'); w.hidden=false; w.innerHTML='<b style="color:var(--text)">확인 필요</b><ul>'+DATA.warnings.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>'; }
+
+if(DATA.idleOn) document.getElementById('idlenote').innerHTML =
+  `<b>자리 비움</b>(키보드·마우스 입력이 ${DATA.idleWait}분 이상 없던 시간, 화면을 잠가 둔 시간)은 실사용에서 뺐습니다. 이 설정을 켠 시점 이후 기록부터 적용됩니다. 동영상 재생처럼 입력 없이 보는 시간은 보통 실사용으로 남습니다.`;
+
+// KPIs
+const kpis=document.getElementById('kpis');
+if(!USERS.length) kpis.innerHTML='<div class="card empty">이 기간에 로그인 기록이 없습니다.</div>';
+USERS.forEach(({id,color})=>{
+  const tot=S.filter(s=>s.u===id).reduce((t,s)=>t+(s.b-s.a),0);
+  const aa=A.filter(s=>s.u===id), real=aa.reduce((t,s)=>t+(s.b-s.a),0);
+  const act=new Set(aa.filter(s=>s.b-s.a>=60000).flatMap(s=>days.filter(d=>s.a<dayEnd(d)&&s.b>d).map(d=>+d))).size;
+  const pct = tot? ` 중 ${Math.round(real/tot*100)}%` : '';
+  kpis.insertAdjacentHTML('beforeend',`<div class="kpi" style="--acc:${color}">
+    <div class="name"><span class="dot"></span>${esc(id)}</div>
+    <div class="big">${fmt(real)}</div>
+    <div class="meta">실사용 · 사용한 날 ${act}일<br>로그인 유지 ${fmt(tot)}${pct}${DATA.idleOn&&DATA.idle[id]?`<br>자리 비움 ${fmt(DATA.idle[id]*60000)} 제외`:''}</div>
+    ${DATA.top[id]?`<div class="top">주로 쓴 앱: ${esc(DATA.top[id])}</div>`:''}</div>`);
+});
+document.getElementById('legend').innerHTML = USERS.map(u=>`<span><i class="dot" style="--acc:${u.color}"></i>${esc(u.id)}</span>`).join('');
+
+// Timeline
+const tl=document.getElementById('timeline');
+const lane=10, trackH=Math.max(1,USERS.length)*lane+4;
+const grid=[0,6,12,18,24].map(h=>`<div class="gridline" style="left:${h/24*100}%"></div>`).join('');
+if(!shownDays.length){ tl.insertAdjacentHTML('beforeend','<div class="empty" style="grid-column:1/-1">이 기간에 사용 기록이 있는 날이 없습니다.</div>'); }
+shownDays.forEach(d=>{
+  const d0=+d, d1=dayEnd(d); let bars='';
+  USERS.forEach((u,li)=>{
+    const draw=(list,op,label)=>list.filter(s=>s.u===u.id && s.a<d1 && s.b>d0).forEach(s=>{
+      const a=Math.max(+s.a,d0), b=Math.min(+s.b,d1);
+      bars+=`<div class="bar" title="${esc(u.id)} ${label} · ${md(s.a)} ${hm(s.a)} ~ ${md(s.b)} ${hm(s.b)} (${fmt(s.b-s.a)})" style="left:${(a-d0)/(d1-d0)*100}%;width:${(b-a)/(d1-d0)*100}%;top:${2+li*lane}px;height:${lane-1}px;background:${u.color};opacity:${op}"></div>`;
+    });
+    draw(S,.22,'로그인 유지'); draw(A,1,'실사용');
+  });
+  tl.insertAdjacentHTML('beforeend',`<div class="day">${md(d)} (${DOW[d.getDay()]})</div><div class="track" style="height:${trackH}px">${grid}${bars}</div>`);
+});
+tl.insertAdjacentHTML('beforeend',`<div></div><div class="axis">${[0,6,12,18,24].map(h=>`<span style="left:${h/24*100}%">${h}시</span>`).join('')}</div>`);
+
+// Daily
+const daily=document.getElementById('daily');
+const per = shownDays.map(d=>{const d0=+d,d1=dayEnd(d); return USERS.map(u=>A.filter(s=>s.u===u.id).reduce((t,s)=>t+Math.max(0,Math.min(+s.b,d1)-Math.max(+s.a,d0)),0));});
+const maxDay = Math.max(1,...per.map(p=>p.reduce((a,b)=>a+b,0)));
+if(!shownDays.length){ daily.insertAdjacentHTML('beforeend','<div class="empty" style="grid-column:1/-1">표시할 날짜가 없습니다.</div>'); }
+shownDays.forEach((d,i)=>{
+  const sum=per[i].reduce((a,b)=>a+b,0);
+  const segs=per[i].map((v,j)=>v?`<div title="${esc(USERS[j].id)} ${fmt(v)}" style="width:${v/maxDay*100}%;background:${USERS[j].color}"></div>`:'').join('');
+  daily.insertAdjacentHTML('beforeend',`<div>${md(d)} (${DOW[d.getDay()]})</div><div class="stack">${segs||'<div style="width:100%;background:var(--off)"></div>'}</div><div class="num">${sum?fmt(sum):'—'}</div>`);
+});
+
+// 사용 기록이 없는 날은 표시에서 제외
+if(skipped>0){
+  const msg=`사용 기록이 없는 ${skipped}일은 표시하지 않았습니다 (표시 ${shownDays.length}일 / 전체 ${days.length}일).`;
+  ['skipped1','skipped2'].forEach(id=>{const el=document.getElementById(id); if(el){el.hidden=false; el.textContent=msg;}});
+}
+
+// Sessions
+const tb=document.querySelector('#sessions tbody');
+[...S].sort((x,y)=>x.a-y.a).forEach(s=>{
+  tb.insertAdjacentHTML('beforeend',`<tr><td><i class="dot" style="--acc:${color(s.u)}"></i> ${esc(s.u)}</td>
+  <td>${md(s.a)} (${DOW[s.a.getDay()]}) ${hm(s.a)}</td><td>${md(s.b)} ${hm(s.b)}</td><td class="r">${fmt(s.b-s.a)}</td><td class="r"><b>${fmt(overlap(s,A))}</b></td><td>${esc(s.r)}</td></tr>`);
+});
+
+// Apps
+const ab=document.querySelector('#apps tbody'), tabs=document.getElementById('apptabs');
+function showApps(uid){
+  const list=DATA.apps[uid]||[], other=DATA.other[uid]||[], col=color(uid), maxF=Math.max(1,...list.map(a=>a.f||0));
+  ab.innerHTML='';
+  list.forEach(a=>{
+    const f=a.f, ft = f==null ? '—' : (f>=60? `${Math.floor(f/60)}시간 ${Math.round(f%60)}분` : `${f<1?'<1':Math.round(f)}분`);
+    ab.insertAdjacentHTML('beforeend',`<tr><td title="${esc(a.p||'')}">${esc(a.n)}</td><td><span class="tag">${esc(a.c)}</span></td><td class="r">${a.r==null?'—':a.r+'회'}</td><td class="r">${ft}</td>
+    <td>${f?`<div class="appbar" style="background:${col};width:${Math.max(2,f/maxF*100)}%"></div>`:''}</td><td class="r">${md(P(a.l))} ${hm(P(a.l))}</td></tr>`);
+  });
+  document.getElementById('appempty').hidden = list.length>0;
+  document.getElementById('otherwrap').hidden = !other.length;
+  document.getElementById('other').innerHTML = other.map(o=>`<span title="${esc(o.p||'')} · ${md(P(o.l))} ${hm(P(o.l))}">${esc(o.n)}</span>`).join('');
+  tabs.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected', b.dataset.u===uid));
+}
+const appUsers = USERS.filter(u=>(DATA.apps[u.id]||[]).length || (DATA.other[u.id]||[]).length);
+appUsers.forEach(u=>{
+  const b=document.createElement('button'); b.dataset.u=u.id; b.style.setProperty('--acc',u.color);
+  b.innerHTML=`<i class="dot"></i>${esc(u.id)} <span style="color:var(--muted)">${(DATA.apps[u.id]||[]).length}</span>`;
+  b.onclick=()=>showApps(u.id); tabs.appendChild(b);
+});
+if(appUsers.length) showApps(appUsers[0].id); else { document.getElementById('appempty').hidden=false; document.getElementById('appempty').textContent='앱 실행 기록을 읽지 못했습니다. 관리자 권한으로 실행했는지 확인해 주세요.'; document.getElementById('otherwrap').hidden=true; }
+</script>
+</body>
+</html>
